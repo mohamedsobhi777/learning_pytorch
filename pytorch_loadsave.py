@@ -28,63 +28,52 @@ class CNN(nn.Module):
         x = self.fc1(x)
 
         return x
- 
+    
 
+def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
+    print("=> Saving checkpoint")
+    torch.save(state, filename)
+
+def load_checkpoint(checkpoint):
+    print("=> Loading checkpoint")
+    model.load_state_dict(checkpoint['state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
 
 # Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
 # Hyperparameters
-in_channel = 1
-hidden_layer = 128
+in_channels = 1
 num_classes = 10
-learning_rate = 0.001 
-batch_size = 64
-num_epochs = 5
-
+learning_rate = 1e-4 
+batch_size = 1024
+num_epochs = 10
+load_model = True
 
 # Load Data
-train_dataset = datasets.MNIST(
-    root="dataset/",
-    train=True,
-    transform=transforms.ToTensor(),
-    download=True
-)
-
-train_loader = DataLoader(
-    dataset=train_dataset,
-    batch_size=batch_size,
-    shuffle=True
-)
-
-test_dataset = datasets.MNIST(
-    root="dataset/",
-    train=False,
-    transform=transforms.ToTensor(),
-    download=True
-)
-
-test_loader = DataLoader(
-    dataset=test_dataset,
-    batch_size=batch_size,
-    shuffle=True
-)
+train_dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms.ToTensor(), download=True)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+test_dataset = datasets.MNIST(root="dataset/", train=False, transform=transforms.ToTensor(), download=True)
+test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
 # Initialize Network
-model = CNN(
-    in_channels=in_channel,
-    num_classes=num_classes
-).to(device)
+model = CNN(in_channels=in_channels, num_classes=num_classes).to(device)
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
+if load_model:
+    load_checkpoint(torch.load("my_checkpoint.pth.tar"))
+
 
 # Train Network
-
 for epoch in range(num_epochs):
+
+    if epoch % 3 == 0:
+        checkpoint = {"state_dict": model.state_dict(), 'optimizer': optimizer.state_dict()}
+        save_checkpoint(checkpoint)
+
     for data, targets in train_loader:
 
         data = data.to(device=device)
@@ -122,7 +111,6 @@ def check_accuracy(loader, model):
             _, predictions = scores.max(1)
             num_correct += (predictions == y).sum()
             num_samples += predictions.size(0)
-
         
         print(f"Got {num_correct} / {num_samples} with accuracy {float(num_correct) / float(num_samples)*100:.2f}")
 
